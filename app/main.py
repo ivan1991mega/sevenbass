@@ -18,31 +18,32 @@ FORMATS = {
 
 
 def crop_to_ratio(img: Image.Image, target_w: int, target_h: int,
-                  offset_x: float = 0.0, offset_y: float = 0.0) -> Image.Image:
+                  fx=None, fy=None) -> Image.Image:
     """Ritaglia al rapporto voluto e ridimensiona alla dimensione target.
 
-    offset_x / offset_y vanno da -1.0 a 1.0 e spostano il ritaglio:
-    0 = centrato, -1 = tutto verso sinistra/alto, +1 = tutto verso destra/basso.
-    L'asse "libero" dipende da quale lato viene tagliato.
+    fx, fy sono il punto focale in coordinate normalizzate (0..1) rispetto
+    all'immagine: il ritaglio viene centrato su quel punto, entro i bordi.
+    Se fx/fy sono None si usa il centro (0.5), cioè centraggio automatico.
     """
     img = ImageOps.exif_transpose(img)  # rispetta orientamento EXIF
     target_ratio = target_w / target_h
     w, h = img.size
     current_ratio = w / h
 
+    fx = 0.5 if fx is None else max(0.0, min(1.0, fx))
+    fy = 0.5 if fy is None else max(0.0, min(1.0, fy))
+
     if current_ratio > target_ratio:
-        # troppo larga -> taglia i lati: si sposta in orizzontale
+        # troppo larga -> taglia i lati, centra sul punto in orizzontale
         new_w = int(h * target_ratio)
-        max_left = w - new_w
-        left = int(max_left * (0.5 + offset_x / 2))
-        left = max(0, min(left, max_left))
+        left = int(fx * w - new_w / 2)
+        left = max(0, min(left, w - new_w))
         img = img.crop((left, 0, left + new_w, h))
     else:
-        # troppo alta -> taglia sopra/sotto: si sposta in verticale
+        # troppo alta -> taglia sopra/sotto, centra sul punto in verticale
         new_h = int(w / target_ratio)
-        max_top = h - new_h
-        top = int(max_top * (0.5 + offset_y / 2))
-        top = max(0, min(top, max_top))
+        top = int(fy * h - new_h / 2)
+        top = max(0, min(top, h - new_h))
         img = img.crop((0, top, w, top + new_h))
 
     return img.resize((target_w, target_h), Image.LANCZOS)
@@ -81,29 +82,25 @@ async def process(
     contrast: float = Form(1.0),
     saturation: float = Form(1.0),
     sharpness: float = Form(1.0),
-    # offset di ricentraggio (-1..1) indipendenti per i due formati
-    post_offset_x: float = Form(0.0),
-    post_offset_y: float = Form(0.0),
-    story_offset_x: float = Form(0.0),
-    story_offset_y: float = Form(0.0),
+    # punto focale in coordinate 0..1; -1 = non impostato (centraggio automatico)
+    focus_x: float = Form(-1.0),
+    focus_y: float = Form(-1.0),
 ):
     raw = await file.read()
     base = Image.open(io.BytesIO(raw))
     base = ImageOps.exif_transpose(base)
     base = apply_adjustments(base, auto, brightness, contrast, saturation, sharpness)
 
-    offsets = {
-        "post_4_5": (post_offset_x, post_offset_y),
-        "story_9_16": (story_offset_x, story_offset_y),
-    }
+    fx = None if focus_x < 0 else focus_x
+    fy = None if focus_y < 0 else focus_y
 
     out = {}
     for name, (tw, th) in FORMATS.items():
-        ox, oy = offsets.get(name, (0.0, 0.0))
-        cropped = crop_to_ratio(base, tw, th, ox, oy)
+        cropped = crop_to_ratio(base, tw, th, fx, fy)
         out[name] = img_to_b64(cropped)
 
-    return JSONResponse({"images": out})
+    # rimando anche le dimensioni originali, servono al frontend per i riquadri
+    return JSONResponse({"images": out, "orig_w": base.width, "orig_h": base.height})
 
 
 @app.post("/api/caption")
@@ -119,9 +116,11 @@ async def caption(
         )
 
     prompt = (
-        f"Scrivi una caption per un post Instagram in {language}, "
+        f"Scrivi una caption per un post Instagram interamente in {language}, "
         f"con tono {tone}, a partire da questa descrizione:\n\n"
         f'"{description}"\n\n'
+        f"IMPORTANTE: caption e hashtag devono essere scritti in {language}, "
+        "senza mescolare altre lingue.\n\n"
         "Restituisci:\n"
         "1. Una caption breve e curata (2-4 righe), con eventuali emoji misurate.\n"
         "2. Una riga vuota.\n"
