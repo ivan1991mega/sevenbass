@@ -34,6 +34,8 @@
   .pv h3{margin:0 0 10px;font-size:14px;font-weight:600}
   .pv img{display:block;border-radius:8px;background:#000}
   .pv .p45 img,.pv .p916 img{max-height:360px;width:auto}
+  .recenter{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+  .recenter label{margin:8px 0 4px}
   .dl{display:inline-block;margin-top:10px;font-size:13px;color:var(--accent2);
     text-decoration:none;font-weight:600}
   textarea{width:100%;min-height:80px;background:#0e0e14;border:1px solid var(--line);
@@ -79,10 +81,22 @@
     <div class="previews">
       <div class="pv"><h3>Post feed · 4:5</h3>
         <div class="p45"><img id="img45" alt=""></div>
+        <div class="recenter" id="recenter45" style="display:none">
+          <label>↔ Posizione orizzontale <span id="v45x">0.00</span></label>
+          <input type="range" id="off45x" min="-1" max="1" step="0.02" value="0">
+          <label>↕ Posizione verticale <span id="v45y">0.00</span></label>
+          <input type="range" id="off45y" min="-1" max="1" step="0.02" value="0">
+        </div>
         <a id="dl45" class="dl" download="post_4x5.jpg" style="display:none">⬇ Scarica</a>
       </div>
       <div class="pv"><h3>Storia · 9:16</h3>
         <div class="p916"><img id="img916" alt=""></div>
+        <div class="recenter" id="recenter916" style="display:none">
+          <label>↔ Posizione orizzontale <span id="v916x">0.00</span></label>
+          <input type="range" id="off916x" min="-1" max="1" step="0.02" value="0">
+          <label>↕ Posizione verticale <span id="v916y">0.00</span></label>
+          <input type="range" id="off916y" min="-1" max="1" step="0.02" value="0">
+        </div>
         <a id="dl916" class="dl" download="story_9x16.jpg" style="display:none">⬇ Scarica</a>
       </div>
     </div>
@@ -116,24 +130,42 @@ sliders.forEach(s => $(s).addEventListener("input", () => $(labels[s]).textConte
 
 $("file").addEventListener("change", () => { $("go").disabled = !$("file").files.length; });
 
-$("go").addEventListener("click", async () => {
+// slider di ricentraggio: aggiornano l'etichetta e ri-elaborano con debounce
+const offsets = ["off45x","off45y","off916x","off916y"];
+const offLabels = {off45x:"v45x",off45y:"v45y",off916x:"v916x",off916y:"v916y"};
+let debounce;
+offsets.forEach(o => $(o).addEventListener("input", () => {
+  $(offLabels[o]).textContent = (+$(o).value).toFixed(2);
+  clearTimeout(debounce);
+  debounce = setTimeout(() => runProcess(true), 250);
+}));
+
+async function runProcess(silent){
   const f = $("file").files[0]; if(!f) return;
-  $("imgStatus").textContent = "Elaborazione in corso...";
+  if(!silent){ $("imgStatus").textContent = "Elaborazione in corso..."; }
   $("go").disabled = true;
   const fd = new FormData();
   fd.append("file", f);
   fd.append("auto", $("auto").checked);
   sliders.forEach(s => fd.append(s, $(s).value));
+  fd.append("post_offset_x", $("off45x").value);
+  fd.append("post_offset_y", $("off45y").value);
+  fd.append("story_offset_x", $("off916x").value);
+  fd.append("story_offset_y", $("off916y").value);
   try{
     const r = await fetch("/api/process", {method:"POST", body:fd});
     const d = await r.json();
     if(d.error) throw new Error(d.error);
     setImg("img45","dl45", d.images.post_4_5);
     setImg("img916","dl916", d.images.story_9_16);
+    $("recenter45").style.display = "block";
+    $("recenter916").style.display = "block";
     $("imgStatus").textContent = "Fatto ✓";
   }catch(e){ $("imgStatus").textContent = "Errore: "+e.message; }
   $("go").disabled = false;
-});
+}
+
+$("go").addEventListener("click", () => runProcess(false));
 
 function setImg(imgId, dlId, b64){
   const src = "data:image/jpeg;base64,"+b64;
