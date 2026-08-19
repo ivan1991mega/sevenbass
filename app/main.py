@@ -17,22 +17,32 @@ FORMATS = {
 }
 
 
-def crop_to_ratio(img: Image.Image, target_w: int, target_h: int) -> Image.Image:
-    """Ritaglia centrato al rapporto voluto, poi ridimensiona alla dimensione target."""
+def crop_to_ratio(img: Image.Image, target_w: int, target_h: int,
+                  offset_x: float = 0.0, offset_y: float = 0.0) -> Image.Image:
+    """Ritaglia al rapporto voluto e ridimensiona alla dimensione target.
+
+    offset_x / offset_y vanno da -1.0 a 1.0 e spostano il ritaglio:
+    0 = centrato, -1 = tutto verso sinistra/alto, +1 = tutto verso destra/basso.
+    L'asse "libero" dipende da quale lato viene tagliato.
+    """
     img = ImageOps.exif_transpose(img)  # rispetta orientamento EXIF
     target_ratio = target_w / target_h
     w, h = img.size
     current_ratio = w / h
 
     if current_ratio > target_ratio:
-        # troppo larga -> taglia i lati
+        # troppo larga -> taglia i lati: si sposta in orizzontale
         new_w = int(h * target_ratio)
-        left = (w - new_w) // 2
+        max_left = w - new_w
+        left = int(max_left * (0.5 + offset_x / 2))
+        left = max(0, min(left, max_left))
         img = img.crop((left, 0, left + new_w, h))
     else:
-        # troppo alta -> taglia sopra/sotto
+        # troppo alta -> taglia sopra/sotto: si sposta in verticale
         new_h = int(w / target_ratio)
-        top = (h - new_h) // 2
+        max_top = h - new_h
+        top = int(max_top * (0.5 + offset_y / 2))
+        top = max(0, min(top, max_top))
         img = img.crop((0, top, w, top + new_h))
 
     return img.resize((target_w, target_h), Image.LANCZOS)
@@ -71,15 +81,26 @@ async def process(
     contrast: float = Form(1.0),
     saturation: float = Form(1.0),
     sharpness: float = Form(1.0),
+    # offset di ricentraggio (-1..1) indipendenti per i due formati
+    post_offset_x: float = Form(0.0),
+    post_offset_y: float = Form(0.0),
+    story_offset_x: float = Form(0.0),
+    story_offset_y: float = Form(0.0),
 ):
     raw = await file.read()
     base = Image.open(io.BytesIO(raw))
     base = ImageOps.exif_transpose(base)
     base = apply_adjustments(base, auto, brightness, contrast, saturation, sharpness)
 
+    offsets = {
+        "post_4_5": (post_offset_x, post_offset_y),
+        "story_9_16": (story_offset_x, story_offset_y),
+    }
+
     out = {}
     for name, (tw, th) in FORMATS.items():
-        cropped = crop_to_ratio(base, tw, th)
+        ox, oy = offsets.get(name, (0.0, 0.0))
+        cropped = crop_to_ratio(base, tw, th, ox, oy)
         out[name] = img_to_b64(cropped)
 
     return JSONResponse({"images": out})
