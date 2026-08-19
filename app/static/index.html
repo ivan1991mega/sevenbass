@@ -82,7 +82,7 @@
       <h3 style="margin:0 0 4px">🎯 Punto focale</h3>
       <p class="muted" style="margin:0 0 12px">Clicca sull'immagine dove vuoi il centro del ritaglio. Se non clicchi, resta centrato in automatico. I riquadri mostrano cosa verrà tenuto.</p>
       <div id="focusStage" style="position:relative;display:inline-block;max-width:100%;cursor:crosshair;user-select:none">
-        <img id="orig" alt="" style="display:block;max-width:100%;border-radius:10px">
+        <img id="orig" alt="" style="display:block;max-width:100%;max-height:52vh;width:auto;height:auto;border-radius:10px">
         <div id="box45" class="cbox" style="border-color:var(--accent)"></div>
         <div id="box916" class="cbox" style="border-color:var(--accent2)"></div>
         <div id="dot" style="position:absolute;width:14px;height:14px;border-radius:50%;
@@ -161,7 +161,7 @@ $("file").addEventListener("change", () => {
     origW = im.naturalWidth; origH = im.naturalHeight;
     $("focusCard").style.display = "block";
     $("dot").style.display = "none";
-    drawBoxes();
+    requestAnimationFrame(drawBoxes);
   };
   im.src = url;
 });
