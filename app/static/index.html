@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InstaPrep</title>
+<style>
+  :root{
+    --bg:#0e0e12; --panel:#17171f; --line:#26262f;
+    --txt:#e9e9ef; --muted:#9a9aac; --accent:#7c5cff; --accent2:#00d4a0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--bg);color:var(--txt)}
+  header{padding:22px 28px;border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:20px;letter-spacing:.5px}
+  header span{color:var(--muted);font-size:13px}
+  .wrap{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - 66px)}
+  .side{padding:22px;border-right:1px solid var(--line);background:var(--panel)}
+  .main{padding:22px 28px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:18px;margin-bottom:18px}
+  label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+  input[type=file]{width:100%;font-size:13px}
+  .row{display:flex;align-items:center;justify-content:space-between;font-size:13px;margin-top:4px}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .toggle{display:flex;align-items:center;gap:8px;margin:6px 0 2px}
+  button{cursor:pointer;border:none;border-radius:10px;padding:11px 16px;
+    font-size:14px;font-weight:600;color:#fff;background:var(--accent);width:100%}
+  button.sec{background:var(--accent2)}
+  button:disabled{opacity:.5;cursor:default}
+  .previews{display:flex;gap:20px;flex-wrap:wrap}
+  .pv{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .pv h3{margin:0 0 10px;font-size:14px;font-weight:600}
+  .pv img{display:block;border-radius:8px;background:#000}
+  .pv .p45 img,.pv .p916 img{max-height:360px;width:auto}
+  .dl{display:inline-block;margin-top:10px;font-size:13px;color:var(--accent2);
+    text-decoration:none;font-weight:600}
+  textarea{width:100%;min-height:80px;background:#0e0e14;border:1px solid var(--line);
+    border-radius:10px;color:var(--txt);padding:10px;font-size:14px;resize:vertical}
+  select{width:100%;background:#0e0e14;border:1px solid var(--line);border-radius:10px;
+    color:var(--txt);padding:9px;font-size:14px}
+  .out{white-space:pre-wrap;background:#0e0e14;border:1px solid var(--line);
+    border-radius:10px;padding:14px;font-size:14px;line-height:1.5;min-height:40px}
+  .muted{color:var(--muted);font-size:13px}
+  .copy{margin-top:10px;background:#2a2a35;width:auto;padding:8px 14px;font-size:13px}
+  .spin{color:var(--accent);font-size:13px}
+</style>
+</head>
+<body>
+<header><h1>📸 InstaPrep <span>· ritaglia, correggi, scrivi</span></h1></header>
+<div class="wrap">
+  <aside class="side">
+    <div class="card">
+      <label>Carica foto</label>
+      <input type="file" id="file" accept="image/*">
+
+      <div class="toggle">
+        <input type="checkbox" id="auto" checked>
+        <label style="margin:0" for="auto">Correzione automatica</label>
+      </div>
+
+      <label>Luminosità <span id="vBright">1.00</span></label>
+      <input type="range" id="brightness" min="0.5" max="1.5" step="0.01" value="1">
+      <label>Contrasto <span id="vContrast">1.00</span></label>
+      <input type="range" id="contrast" min="0.5" max="1.5" step="0.01" value="1">
+      <label>Saturazione <span id="vSat">1.00</span></label>
+      <input type="range" id="saturation" min="0" max="2" step="0.01" value="1">
+      <label>Nitidezza <span id="vSharp">1.00</span></label>
+      <input type="range" id="sharpness" min="0" max="3" step="0.01" value="1">
+
+      <div style="margin-top:16px"></div>
+      <button id="go" disabled>Elabora immagine</button>
+      <div id="imgStatus" class="spin" style="margin-top:8px"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="previews">
+      <div class="pv"><h3>Post feed · 4:5</h3>
+        <div class="p45"><img id="img45" alt=""></div>
+        <a id="dl45" class="dl" download="post_4x5.jpg" style="display:none">⬇ Scarica</a>
+      </div>
+      <div class="pv"><h3>Storia · 9:16</h3>
+        <div class="p916"><img id="img916" alt=""></div>
+        <a id="dl916" class="dl" download="story_9x16.jpg" style="display:none">⬇ Scarica</a>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h3 style="margin:0 0 6px">✍️ Caption + hashtag</h3>
+      <label>Descrizione / spunto</label>
+      <textarea id="desc" placeholder="Es. Tramonto sul lago di Como, aperitivo con vista, weekend lento..."></textarea>
+      <label>Tono</label>
+      <select id="tone">
+        <option>coinvolgente e naturale</option>
+        <option>elegante e minimale</option>
+        <option>ironico e leggero</option>
+        <option>ispirazionale</option>
+        <option>professionale</option>
+      </select>
+      <div style="margin-top:14px"></div>
+      <button id="genCap" class="sec">Genera testo</button>
+      <div id="capStatus" class="spin" style="margin-top:8px"></div>
+      <div id="capOut" class="out" style="margin-top:12px;display:none"></div>
+      <button id="copy" class="copy" style="display:none">Copia</button>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const sliders = ["brightness","contrast","saturation","sharpness"];
+const labels = {brightness:"vBright",contrast:"vContrast",saturation:"vSat",sharpness:"vSharp"};
+sliders.forEach(s => $(s).addEventListener("input", () => $(labels[s]).textContent = (+$(s).value).toFixed(2)));
+
+$("file").addEventListener("change", () => { $("go").disabled = !$("file").files.length; });
+
+$("go").addEventListener("click", async () => {
+  const f = $("file").files[0]; if(!f) return;
+  $("imgStatus").textContent = "Elaborazione in corso...";
+  $("go").disabled = true;
+  const fd = new FormData();
+  fd.append("file", f);
+  fd.append("auto", $("auto").checked);
+  sliders.forEach(s => fd.append(s, $(s).value));
+  try{
+    const r = await fetch("/api/process", {method:"POST", body:fd});
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    setImg("img45","dl45", d.images.post_4_5);
+    setImg("img916","dl916", d.images.story_9_16);
+    $("imgStatus").textContent = "Fatto ✓";
+  }catch(e){ $("imgStatus").textContent = "Errore: "+e.message; }
+  $("go").disabled = false;
+});
+
+function setImg(imgId, dlId, b64){
+  const src = "data:image/jpeg;base64,"+b64;
+  $(imgId).src = src;
+  const a = $(dlId); a.href = src; a.style.display = "inline-block";
+}
+
+$("genCap").addEventListener("click", async () => {
+  const desc = $("desc").value.trim();
+  if(!desc){ $("capStatus").textContent = "Scrivi una descrizione."; return; }
+  $("capStatus").textContent = "Sto scrivendo...";
+  $("genCap").disabled = true;
+  const fd = new FormData();
+  fd.append("description", desc);
+  fd.append("tone", $("tone").value);
+  try{
+    const r = await fetch("/api/caption", {method:"POST", body:fd});
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    $("capOut").textContent = d.caption;
+    $("capOut").style.display = "block";
+    $("copy").style.display = "inline-block";
+    $("capStatus").textContent = "";
+  }catch(e){ $("capStatus").textContent = "Errore: "+e.message; }
+  $("genCap").disabled = false;
+});
+
+$("copy").addEventListener("click", () => {
+  navigator.clipboard.writeText($("capOut").textContent);
+  $("copy").textContent = "Copiato ✓";
+  setTimeout(()=>$("copy").textContent="Copia", 1500);
+});
+</script>
+</body>
+</html>
